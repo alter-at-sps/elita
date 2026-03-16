@@ -66,6 +66,7 @@ export function getDockingResult() { return result; }
 export function startDocking(st, shipSpeed, padNumber) {
   station = st;
   active = true;
+  mode = 'dock';
   result = null;
   resultTimer = 0;
   resultMsg = '';
@@ -77,6 +78,30 @@ export function startDocking(st, shipSpeed, padNumber) {
   assignedPad = padNumber || 1;
   scrollSpeed = Math.max(MIN_SCROLL_SPEED, Math.min(MAX_SCROLL_SPEED, (shipSpeed / 50) * 150));
   generatePads(st);
+}
+
+export function startUndocking(st, padNumber) {
+  station = st;
+  active = true;
+  mode = 'undock';
+  result = null;
+  resultTimer = 0;
+  resultMsg = '';
+  assignedPad = padNumber || 1;
+  generatePads(st);
+  // Start ship on the assigned pad
+  const pad = pads.find(p => p.number === assignedPad);
+  if (pad) {
+    scrollX = pad.x + PAD_W / 2; // center on pad horizontally
+    shipY = pad.side === 'bot' ? pad.y - SHIP_H / 2 - 2 : pad.y + PAD_H + SHIP_H / 2 + 2;
+  } else {
+    scrollX = totalLength / 2;
+    shipY = 0;
+  }
+  shipVY = 0;
+  moveDir = 0;
+  thrustFwd = false;
+  scrollSpeed = 0; // start stationary, player must thrust
 }
 
 function generatePads(st) {
@@ -103,7 +128,7 @@ function generatePads(st) {
 
 export function setDockingMove(dir) {
   moveDir = dir;
-  // W (dir === -1) also adds forward thrust
+  // In dock mode: W thrusts forward (right). In undock mode: W thrusts backward (left)
   thrustFwd = (dir === -1);
 }
 
@@ -121,11 +146,19 @@ export function updateDocking(dt) {
     return null;
   }
 
-  // Forward inertia — decays
-  scrollSpeed -= scrollSpeed * FWD_DRAG * dt;
-  if (thrustFwd) scrollSpeed += FWD_THRUST_BOOST * dt;
-  scrollSpeed = Math.max(MIN_SCROLL_SPEED, Math.min(MAX_SCROLL_SPEED, scrollSpeed));
-  scrollX += scrollSpeed * dt;
+  // Forward/backward movement depending on mode
+  if (mode === 'dock') {
+    scrollSpeed -= scrollSpeed * FWD_DRAG * dt;
+    if (thrustFwd) scrollSpeed += FWD_THRUST_BOOST * dt;
+    scrollSpeed = Math.max(MIN_SCROLL_SPEED, Math.min(MAX_SCROLL_SPEED, scrollSpeed));
+    scrollX += scrollSpeed * dt;
+  } else {
+    // Undock: scroll goes backward (decreasing). W key accelerates left.
+    if (thrustFwd) scrollSpeed += FWD_THRUST_BOOST * 1.2 * dt;
+    scrollSpeed -= scrollSpeed * FWD_DRAG * dt;
+    scrollSpeed = Math.max(0, Math.min(MAX_SCROLL_SPEED, scrollSpeed));
+    scrollX -= scrollSpeed * dt;
+  }
 
   // Vertical thrust
   shipVY += moveDir * THRUST_ACCEL * dt;
@@ -146,10 +179,8 @@ export function updateDocking(dt) {
 
   // --- Collision with approach walls (narrowing entry) ---
   if (shipWorldX < APPROACH_LEN + 40) {
-    // Entry narrows from large opening to ENTRY_GAP
     const t = Math.max(0, shipWorldX / (APPROACH_LEN + 40));
     const currentHalf = halfH - t * (halfH - ENTRY_GAP / 2);
-    // Actually the walls should narrow from outside to ENTRY_GAP
     const wallTopY = -currentHalf;
     const wallBotY = currentHalf;
     if (shipTop < wallTopY || shipBot > wallBotY) {
@@ -167,8 +198,9 @@ export function updateDocking(dt) {
       return null;
     }
 
-    // Check pad collision — landing or crash
-    for (const pad of pads) {
+    // Check pad collision (only in dock mode — in undock we start on pad)
+    if (mode === 'dock') {
+      for (const pad of pads) {
       // Is ship overlapping this pad horizontally?
       if (shipRight > pad.x && shipLeft < pad.x + pad.w) {
         if (pad.side === 'bot') {
@@ -215,14 +247,32 @@ export function updateDocking(dt) {
         }
       }
     }
+    } // end if mode === 'dock'
   }
 
-  // Flew past the station — fail
-  if (scrollX > totalLength) {
-    result = 'fail';
-    resultMsg = 'Missed the station — flew too far';
-    resultTimer = 0;
-    return null;
+  // --- Success/fail conditions ---
+  if (mode === 'dock') {
+    if (scrollX > totalLength) {
+      result = 'fail';
+      resultMsg = 'Missed the station — flew too far';
+      resultTimer = 0;
+      return null;
+    }
+  } else {
+    // Undock: success when ship exits the station (scrollX < 0)
+    if (scrollX < -20) {
+      result = 'success';
+      resultMsg = 'Undocked successfully';
+      resultTimer = 0;
+      return null;
+    }
+    // Fail if drifting too far into the station
+    if (scrollX > totalLength + 50) {
+      result = 'fail';
+      resultMsg = 'Drifted too deep into the station';
+      resultTimer = 0;
+      return null;
+    }
   }
 
   return null;
@@ -248,13 +298,17 @@ export function drawDocking(ctx) {
   ctx.font = 'bold 14px monospace';
   ctx.fillStyle = '#4af';
   ctx.textAlign = 'center';
-  ctx.fillText(`DOCKING — ${station.name}`, cx, cy - halfH - 40);
+  ctx.fillText(mode === 'dock' ? `DOCKING — ${station.name}` : `UNDOCKING — ${station.name}`, cx, cy - halfH - 40);
 
-  // Assigned pad indicator
+  // Pad indicator
   const targetPad = pads.find(p => p.number === assignedPad);
   ctx.font = 'bold 16px monospace';
   ctx.fillStyle = '#ff0';
-  ctx.fillText(`▸ LAND ON PAD ${assignedPad} (${targetPad ? targetPad.side === 'bot' ? 'FLOOR' : 'CEILING' : '?'})`, cx, cy - halfH - 20);
+  if (mode === 'dock') {
+    ctx.fillText(`▸ LAND ON PAD ${assignedPad} (${targetPad ? targetPad.side === 'bot' ? 'FLOOR' : 'CEILING' : '?'})`, cx, cy - halfH - 20);
+  } else {
+    ctx.fillText(`▸ FLY OUT OF THE STATION`, cx, cy - halfH - 20);
+  }
 
   // Viewport
   const viewW = Math.min(700, W - 60);
@@ -332,6 +386,28 @@ export function drawDocking(ctx) {
     }
   }
 
+  // --- Exit marker for undock mode ---
+  if (mode === 'undock') {
+    const exitScreenX = w2s(0);
+    if (exitScreenX > vx && exitScreenX < vx + viewW) {
+      const gapTop = vy + halfH - ENTRY_GAP / 2;
+      const gapBot = vy + halfH + ENTRY_GAP / 2;
+      // Green exit arrow
+      ctx.fillStyle = `rgba(0,255,100,${0.4 + 0.3 * Math.sin(t * 3)})`;
+      ctx.beginPath();
+      ctx.moveTo(exitScreenX + 20, (gapTop + gapBot) / 2 - 12);
+      ctx.lineTo(exitScreenX + 20, (gapTop + gapBot) / 2 + 12);
+      ctx.lineTo(exitScreenX + 4, (gapTop + gapBot) / 2);
+      ctx.closePath();
+      ctx.fill();
+      // "EXIT" label
+      ctx.font = 'bold 9px monospace';
+      ctx.fillStyle = '#4f4';
+      ctx.textAlign = 'center';
+      ctx.fillText('EXIT', exitScreenX + 12, gapTop - 4);
+    }
+  }
+
   // --- Draw landing pads ---
   for (const pad of pads) {
     const sx = w2s(pad.x);
@@ -386,16 +462,23 @@ export function drawDocking(ctx) {
   const shipScreenX = vx + shipLocalX;
   const shipScreenY = vy + halfH + shipY;
 
-  // Engine flame
+  // Engine flame — in undock mode, flame points right (thrusting left)
   const thrusting = moveDir !== 0;
   const flameLen = thrustFwd ? 14 + Math.random() * 10 : (thrusting ? 6 : 3 + Math.random() * 3);
   const flameW2 = thrustFwd ? 5 : 2;
   ctx.fillStyle = thrustFwd ? '#f80' : '#a64';
   ctx.globalAlpha = thrustFwd ? 0.9 : 0.3;
   ctx.beginPath();
-  ctx.moveTo(shipScreenX - SHIP_W / 2, shipScreenY - flameW2);
-  ctx.lineTo(shipScreenX - SHIP_W / 2 - flameLen, shipScreenY);
-  ctx.lineTo(shipScreenX - SHIP_W / 2, shipScreenY + flameW2);
+  if (mode === 'undock') {
+    // Flame on right side (thrusting left)
+    ctx.moveTo(shipScreenX + SHIP_W / 2, shipScreenY - flameW2);
+    ctx.lineTo(shipScreenX + SHIP_W / 2 + flameLen, shipScreenY);
+    ctx.lineTo(shipScreenX + SHIP_W / 2, shipScreenY + flameW2);
+  } else {
+    ctx.moveTo(shipScreenX - SHIP_W / 2, shipScreenY - flameW2);
+    ctx.lineTo(shipScreenX - SHIP_W / 2 - flameLen, shipScreenY);
+    ctx.lineTo(shipScreenX - SHIP_W / 2, shipScreenY + flameW2);
+  }
   ctx.closePath();
   ctx.fill();
   ctx.globalAlpha = 1;
@@ -444,13 +527,16 @@ export function drawDocking(ctx) {
   ctx.font = '11px monospace';
   ctx.fillStyle = '#888';
   ctx.textAlign = 'center';
-  ctx.fillText('[W/↑] up + boost  [S/↓] down — land gently on your assigned pad', cx, cy + halfH + 18);
+  ctx.fillText(mode === 'dock'
+    ? '[W/↑] up + boost  [S/↓] down — land gently on your assigned pad'
+    : '[W/↑] up + thrust left  [S/↓] down — fly out through the entrance',
+    cx, cy + halfH + 18);
 
   // Result overlay
   if (result === 'success') {
     ctx.font = 'bold 22px monospace';
     ctx.fillStyle = '#4f4';
-    ctx.fillText('DOCKING SUCCESSFUL', cx, cy - 8);
+    ctx.fillText(mode === 'dock' ? 'DOCKING SUCCESSFUL' : 'UNDOCKED', cx, cy - 8);
     ctx.font = '13px monospace';
     ctx.fillStyle = '#8f8';
     ctx.fillText(resultMsg, cx, cy + 14);

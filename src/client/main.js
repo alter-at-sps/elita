@@ -10,7 +10,7 @@ import { renderScene } from './renderer.js';
 import { drawHUD, cycleMinimapZoom } from './hud.js';
 import { drawPanels, togglePanel, closePanel, getActivePanel, handleTradeKey,
          cycleLedgerSort, toggleLedgerDirection, cycleLedgerFilter } from './panels.js';
-import { isDockingActive, startDocking, setDockingMove, updateDocking, drawDocking, getPadCount } from './docking.js';
+import { isDockingActive, startDocking, startUndocking, setDockingMove, updateDocking, drawDocking, getPadCount } from './docking.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -101,10 +101,12 @@ window.addEventListener('keydown', e => {
   // Dock/undock: F key
   if (e.code === 'KeyF') {
     if (ship.docked) {
+      // Start undocking minigame
+      const st = ship.dockedAt;
       ship.docked = false;
       ship.dockedAt = null;
-      // Keep dockingRequested so station defense doesn't fire on undock
       closePanel();
+      startUndocking(st, ship.assignedPad);
     } else {
       const stations = world.pois.filter(p => p.type === 'station');
       for (const st of stations) {
@@ -198,15 +200,19 @@ function gameLoop(now) {
   if (isDockingActive()) {
     const dockResult = updateDocking(dt);
     if (dockResult === 'success') {
-      // Find the station we were docking at
-      const stations = world.pois.filter(p => p.type === 'station');
-      for (const st of stations) {
-        if (ship.dockingRequested === st && ship.distanceTo(st) < DOCK_RANGE + 50) {
-          ship.docked = true;
-          ship.dockedAt = st;
-          break;
+      // Check if this was docking or undocking based on ship state
+      if (!ship.docked) {
+        // Was docking — dock the ship
+        const stations = world.pois.filter(p => p.type === 'station');
+        for (const st of stations) {
+          if (ship.dockingRequested === st && ship.distanceTo(st) < DOCK_RANGE + 50) {
+            ship.docked = true;
+            ship.dockedAt = st;
+            break;
+          }
         }
       }
+      // If undocking success — ship is already undocked, nothing more needed
     }
     // On fail — nothing, player stays near station and can try again
     renderScene(ctx, ship, world.pois, getZoom());
