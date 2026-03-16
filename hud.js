@@ -22,26 +22,26 @@ export class HUD {
         const panelH = 70;
 
         // Background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         this.roundRect(ctx, panelX, panelY, panelW, panelH, 8);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.lineWidth = 1;
         this.roundRect(ctx, panelX, panelY, panelW, panelH, 8);
         ctx.stroke();
 
         // Speed text
         const speed = Math.round(ship.speed);
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
         ctx.font = 'bold 11px monospace';
         ctx.textAlign = 'left';
         ctx.fillText('SPEED', panelX + 12, panelY + 20);
 
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = '#000';
         ctx.font = 'bold 22px monospace';
         ctx.fillText(`${speed}`, panelX + 12, panelY + 48);
         ctx.font = '11px monospace';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.fillText('m/s', panelX + 12 + ctx.measureText(`${speed}`).width + 6, panelY + 48);
 
         // Speed bar
@@ -51,7 +51,7 @@ export class HUD {
         const barH = 46;
         const fillRatio = Math.min(1, speed / ship.maxSpeed);
 
-        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
         this.roundRect(ctx, barX, barY, barW, barH, 4);
         ctx.fill();
 
@@ -59,9 +59,9 @@ export class HUD {
         const fillH = barH * fillRatio;
         if (fillRatio > 0) {
             const barGrad = ctx.createLinearGradient(barX, barY + barH, barX, barY);
-            barGrad.addColorStop(0, 'rgba(255,255,255,0.8)');
-            barGrad.addColorStop(0.7, 'rgba(200,200,200,0.6)');
-            barGrad.addColorStop(1, 'rgba(150,150,150,0.4)');
+            barGrad.addColorStop(0, 'rgba(0,0,0,0.8)');
+            barGrad.addColorStop(0.7, 'rgba(55,55,55,0.6)');
+            barGrad.addColorStop(1, 'rgba(105,105,105,0.4)');
             ctx.fillStyle = barGrad;
             this.roundRect(ctx, barX, barY + barH - fillH, barW, fillH, 4);
             ctx.fill();
@@ -75,10 +75,10 @@ export class HUD {
         const panelH = 110;
 
         // Background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         this.roundRect(ctx, panelX, panelY, panelW, panelH, 8);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.lineWidth = 1;
         this.roundRect(ctx, panelX, panelY, panelW, panelH, 8);
         ctx.stroke();
@@ -87,7 +87,7 @@ export class HUD {
         let y = panelY + 20;
 
         // Fuel
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
         ctx.font = 'bold 11px monospace';
         ctx.textAlign = 'left';
         ctx.fillText('FUEL', x, y);
@@ -95,41 +95,41 @@ export class HUD {
         const fuelRatio = ship.fuel / ship.maxFuel;
         const fuelBarX = x + 50;
         const fuelBarW = panelW - 74;
-        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
         this.roundRect(ctx, fuelBarX, y - 10, fuelBarW, 14, 3);
         ctx.fill();
 
         if (fuelRatio > 0) {
-            const v = fuelRatio > 0.3 ? 255 : fuelRatio > 0.1 ? 180 : 120;
+            const v = fuelRatio > 0.3 ? 0 : fuelRatio > 0.1 ? 75 : 135;
             ctx.fillStyle = `rgba(${v},${v},${v},0.7)`;
             this.roundRect(ctx, fuelBarX, y - 10, fuelBarW * fuelRatio, 14, 3);
             ctx.fill();
         }
 
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.font = '10px monospace';
         ctx.fillText(`${Math.round(ship.fuel)}%`, fuelBarX + fuelBarW + 4, y);
 
         // Cargo
         y += 28;
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
         ctx.font = 'bold 11px monospace';
         ctx.fillText('CARGO', x, y);
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.font = '10px monospace';
         ctx.fillText(ship.cargo.length > 0 ? ship.cargo.join(', ') : 'Empty', x + 55, y);
 
         // Status
         y += 28;
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
         ctx.font = 'bold 11px monospace';
         ctx.fillText('STATUS', x, y);
-        ctx.fillStyle = ship.docked ? '#fff' : 'rgba(255,255,255,0.5)';
+        ctx.fillStyle = ship.docked ? '#000' : 'rgba(0,0,0,0.5)';
         ctx.font = '10px monospace';
         if (ship.docked) {
             ctx.fillText(`Docked: ${ship.dockedPlanet.name}`, x + 60, y);
         } else if (ship.fuel <= 0) {
-            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.fillText('NO FUEL', x + 60, y);
         } else {
             ctx.fillText('In Flight', x + 60, y);
@@ -139,10 +139,10 @@ export class HUD {
         y += 28;
         const { planet: nearest, distance } = world.getNearestPlanet(ship.x, ship.y);
         if (nearest) {
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
             ctx.font = 'bold 11px monospace';
             ctx.fillText('NEAR', x, y);
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
             ctx.font = '10px monospace';
             ctx.fillText(`${nearest.name} (${Math.round(distance)}m)`, x + 50, y);
         }
@@ -185,7 +185,7 @@ export class HUD {
                 (planet.x - ship.x) ** 2 + (planet.y - ship.y) ** 2
             );
 
-            // Draw arrow (white)
+            // Draw arrow (black)
             ctx.save();
             ctx.translate(ax, ay);
             ctx.rotate(angle);
@@ -197,7 +197,7 @@ export class HUD {
             ctx.lineTo(-arrowSize, arrowSize * 0.6);
             ctx.closePath();
 
-            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
             ctx.fill();
 
             ctx.restore();
@@ -207,7 +207,7 @@ export class HUD {
             const lx = ax + Math.cos(angle + Math.PI) * labelOffset;
             const ly = ay + Math.sin(angle + Math.PI) * labelOffset;
 
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.font = '9px monospace';
             ctx.textAlign = 'center';
             ctx.fillText(planet.name, lx, ly - 4);
@@ -219,13 +219,13 @@ export class HUD {
         if (ship.docked) {
             this.dockPromptTarget = 1;
             this.dockPromptAlpha += (this.dockPromptTarget - this.dockPromptAlpha) * 0.1;
-            ctx.fillStyle = `rgba(255, 255, 255, ${this.dockPromptAlpha * 0.8})`;
+            ctx.fillStyle = `rgba(0, 0, 0, ${this.dockPromptAlpha * 0.8})`;
             ctx.font = 'bold 14px monospace';
             ctx.textAlign = 'center';
             ctx.fillText(`[E] Undock from ${ship.dockedPlanet.name}`, w / 2, h / 2 + 60);
 
             if (ship.dockedPlanet.hasStation) {
-                ctx.fillStyle = `rgba(255, 255, 255, ${this.dockPromptAlpha * 0.6})`;
+                ctx.fillStyle = `rgba(0, 0, 0, ${this.dockPromptAlpha * 0.6})`;
                 ctx.font = '12px monospace';
                 ctx.fillText('[R] Refuel', w / 2, h / 2 + 82);
             }
@@ -238,7 +238,7 @@ export class HUD {
                 canDock = true;
                 this.dockPromptTarget = 1;
                 this.dockPromptAlpha += (this.dockPromptTarget - this.dockPromptAlpha) * 0.1;
-                ctx.fillStyle = `rgba(255, 255, 255, ${this.dockPromptAlpha * 0.8})`;
+                ctx.fillStyle = `rgba(0, 0, 0, ${this.dockPromptAlpha * 0.8})`;
                 ctx.font = 'bold 14px monospace';
                 ctx.textAlign = 'center';
                 ctx.fillText(`[E] Dock at ${planet.name}`, w / 2, h / 2 + 60);

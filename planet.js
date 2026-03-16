@@ -60,8 +60,8 @@ export class Planet {
             this.x, this.y, this.radius,
             this.x, this.y, this.gravityRange
         );
-        gradient.addColorStop(0, 'rgba(255,255,255,0.02)');
-        gradient.addColorStop(1, 'rgba(255,255,255,0)');
+        gradient.addColorStop(0, 'rgba(0,0,0,0.02)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.gravityRange, 0, Math.PI * 2);
@@ -72,31 +72,32 @@ export class Planet {
             this.x, this.y, this.radius * 0.8,
             this.x, this.y, this.radius * 1.4
         );
-        atmoGrad.addColorStop(0, 'rgba(255,255,255,0)');
-        atmoGrad.addColorStop(0.5, `rgba(${s},${s},${s},0.1)`);
-        atmoGrad.addColorStop(1, 'rgba(255,255,255,0)');
+        const is = 255 - s;
+        atmoGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        atmoGrad.addColorStop(0.5, `rgba(${is},${is},${is},0.1)`);
+        atmoGrad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = atmoGrad;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius * 1.4, 0, Math.PI * 2);
         ctx.fill();
 
         // Planet body
-        const lighter = Math.min(255, s + 40);
+        const iLighter = Math.max(0, is - 40);
         const bodyGrad = ctx.createRadialGradient(
             this.x - this.radius * 0.3, this.y - this.radius * 0.3, this.radius * 0.1,
             this.x, this.y, this.radius
         );
-        bodyGrad.addColorStop(0, `rgb(${lighter},${lighter},${lighter})`);
-        bodyGrad.addColorStop(1, `rgb(${s},${s},${s})`);
+        bodyGrad.addColorStop(0, `rgb(${iLighter},${iLighter},${iLighter})`);
+        bodyGrad.addColorStop(1, `rgb(${is},${is},${is})`);
         ctx.fillStyle = bodyGrad;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
 
         // Craters
-        const craterShade = Math.max(0, s - 40);
+        const iCrater = Math.min(255, is + 40);
         for (const c of this.craters) {
-            ctx.fillStyle = `rgba(${craterShade},${craterShade},${craterShade},0.4)`;
+            ctx.fillStyle = `rgba(${iCrater},${iCrater},${iCrater},0.4)`;
             ctx.beginPath();
             ctx.arc(this.x + c.x, this.y + c.y, c.r, 0, Math.PI * 2);
             ctx.fill();
@@ -104,7 +105,7 @@ export class Planet {
 
         // Station indicator
         if (this.hasStation) {
-            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
             ctx.lineWidth = 1.5;
             ctx.setLineDash([4, 4]);
             ctx.beginPath();
@@ -114,7 +115,7 @@ export class Planet {
         }
 
         // Planet name
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
         ctx.font = '12px monospace';
         ctx.textAlign = 'center';
         ctx.fillText(this.name, this.x, this.y + this.radius + 30);

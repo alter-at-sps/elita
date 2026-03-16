@@ -99,7 +99,7 @@ function gameLoop(timestamp) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Background - deep space
-    ctx.fillStyle = '#020810';
+    ctx.fillStyle = '#FDF7EF';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Stars (drawn in screen space with parallax)

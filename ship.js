@@ -178,7 +178,7 @@ export class Ship {
         // Draw particles (white/grey)
         for (const p of this.particles) {
             const alpha = p.life / p.maxLife;
-            const v = Math.floor(180 + 75 * alpha);
+            const v = Math.floor(75 - 75 * alpha);
             ctx.fillStyle = `rgba(${v},${v},${v},${alpha})`;
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
@@ -191,7 +191,7 @@ export class Ship {
         ctx.rotate(this.angle + Math.PI / 2);
 
         if (this.spriteReady) {
-            const sprite = this.thrusting ? this.invertedWithJets : this.invertedNoJets;
+            const sprite = this.thrusting ? this.spriteWithJets : this.spriteNoJets;
             const scale = 0.55;
             const w = sprite.width * scale;
             const h = sprite.height * scale;
@@ -204,9 +204,9 @@ export class Ship {
             ctx.lineTo(0, 7);
             ctx.lineTo(10, 12);
             ctx.closePath();
-            ctx.fillStyle = '#fff';
+            ctx.fillStyle = '#000';
             ctx.fill();
-            ctx.strokeStyle = '#aaa';
+            ctx.strokeStyle = '#555';
             ctx.lineWidth = 1;
             ctx.stroke();
         }

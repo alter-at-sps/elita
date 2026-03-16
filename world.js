@@ -63,7 +63,7 @@ export class World {
                 const twinkle = 0.5 + 0.5 * Math.sin(time * star.twinkleSpeed + star.twinkleOffset);
                 const alpha = star.alpha * (0.6 + 0.4 * twinkle);
 
-                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
                 ctx.beginPath();
                 ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
                 ctx.fill();
