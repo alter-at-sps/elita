@@ -30,6 +30,7 @@ export default class Ship {
     this.credits = 500; // starting money
     // Docking request
     this.dockingRequested = null; // station reference or null
+    this.assignedPad = 0; // landing pad number assigned on docking request
     this.destroyed = false;
     this.destroyTimer = 0;
   }

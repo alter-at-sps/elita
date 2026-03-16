@@ -10,7 +10,7 @@ import { renderScene } from './renderer.js';
 import { drawHUD, cycleMinimapZoom } from './hud.js';
 import { drawPanels, togglePanel, closePanel, getActivePanel, handleTradeKey,
          cycleLedgerSort, toggleLedgerDirection, cycleLedgerFilter } from './panels.js';
-import { isDockingActive, startDocking, setDockingMove, updateDocking, drawDocking } from './docking.js';
+import { isDockingActive, startDocking, setDockingMove, updateDocking, drawDocking, getPadCount } from './docking.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -90,6 +90,9 @@ window.addEventListener('keydown', e => {
       for (const st of stations) {
         if (ship.distanceTo(st) < DOCK_REQUEST_RANGE) {
           ship.dockingRequested = st;
+          // Assign a landing pad based on station size
+          const padCount = getPadCount(st);
+          ship.assignedPad = 1 + Math.floor(Math.random() * padCount);
           break;
         }
       }
@@ -109,7 +112,7 @@ window.addEventListener('keydown', e => {
           // Start docking minigame with current speed as inertia
           const entrySpeed = ship.speed;
           ship.speed = 0;
-          startDocking(st, entrySpeed);
+          startDocking(st, entrySpeed, ship.assignedPad);
           break;
         }
       }
@@ -233,6 +236,7 @@ function gameLoop(now) {
     // Clear docking request once safely outside defense range
     if (ship.dockingRequested && ship.distanceTo(ship.dockingRequested) > DOCK_REQUEST_RANGE) {
       ship.dockingRequested = null;
+      ship.assignedPad = 0;
     }
   }
 
@@ -249,6 +253,7 @@ function gameLoop(now) {
       ship.credits = Math.max(100, ship.credits - 200);
       ship.cargo = {};
       ship.dockingRequested = null;
+      ship.assignedPad = 0;
     }
   }
 

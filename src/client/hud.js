@@ -78,10 +78,10 @@ export function drawHUD(ctx, ship, pois, zoom = 1) {
         const requested = ship.dockingRequested === st;
         if (requested && d < 80 && ship.speed < 50) {
           ctx.fillStyle = '#2a2';
-          ctx.fillText(`[F] Dock at ${st.name}`, 20, 148);
+          ctx.fillText(`[F] Dock at ${st.name} — PAD ${ship.assignedPad}`, 20, 148);
         } else if (requested) {
           ctx.fillStyle = '#28a';
-          ctx.fillText(`Docking cleared — approach ${st.name} slowly`, 20, 148);
+          ctx.fillText(`Docking cleared — PAD ${ship.assignedPad} — approach ${st.name} slowly`, 20, 148);
         } else if (d < 60) {
           ctx.fillStyle = '#e33';
           ctx.font = 'bold 13px monospace';
