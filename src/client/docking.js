@@ -16,12 +16,10 @@ const LAND_MAX_SPEED = 40;    // max forward speed to land
 // === Physics constants ===
 const THRUST_ACCEL = 280;
 const VERT_DRAG = 2.2;
-const GRAVITY = 100;
-const GRAVITY_SPEED_THRESH = 70;
 const FWD_DRAG = 0.35;
-const MIN_SCROLL_SPEED = 15;
 const MAX_SCROLL_SPEED = 250;
 const FWD_THRUST_BOOST = 50;
+const BRAKE_DECEL = 120;
 
 // === State ===
 let active = false;
@@ -31,13 +29,15 @@ let shipVY = 0;
 let scrollX = 0;
 let scrollSpeed = 0;
 let moveDir = 0;
-let thrustFwd = false;        // W also thrusts forward
+let thrustFwd = false;
+let braking = false;
 let result = null;
 let resultTimer = 0;
 let resultMsg = '';
 let assignedPad = 0;
 let pads = [];                // { x, y, w, side:'top'|'bot', number }
 let totalLength = 0;          // approach + station interior
+let mode = 'dock';            // 'dock' or 'undock'
 
 function seededRng(seed) {
   let s = seed | 0;
@@ -62,6 +62,7 @@ export function getPadCount(st) {
 
 export function isDockingActive() { return active; }
 export function getDockingResult() { return result; }
+export function getDockingMode() { return mode; }
 
 export function startDocking(st, shipSpeed, padNumber) {
   station = st;
@@ -76,7 +77,8 @@ export function startDocking(st, shipSpeed, padNumber) {
   moveDir = 0;
   thrustFwd = false;
   assignedPad = padNumber || 1;
-  scrollSpeed = Math.max(MIN_SCROLL_SPEED, Math.min(MAX_SCROLL_SPEED, (shipSpeed / 50) * 150));
+  scrollSpeed = Math.max(0, Math.min(MAX_SCROLL_SPEED, (shipSpeed / 50) * 150));
+  braking = false;
   generatePads(st);
 }
 
@@ -101,6 +103,7 @@ export function startUndocking(st, padNumber) {
   shipVY = 0;
   moveDir = 0;
   thrustFwd = false;
+  braking = false;
   scrollSpeed = 0; // start stationary, player must thrust
 }
 
@@ -128,8 +131,12 @@ function generatePads(st) {
 
 export function setDockingMove(dir) {
   moveDir = dir;
-  // In dock mode: W thrusts forward (right). In undock mode: W thrusts backward (left)
-  thrustFwd = (dir === -1);
+}
+
+export function setDockingHorizontal(dir) {
+  // dir: 1 = forward thrust, -1 = brake, 0 = neither
+  thrustFwd = (dir === 1);
+  braking = (dir === -1);
 }
 
 export function updateDocking(dt) {
@@ -150,23 +157,21 @@ export function updateDocking(dt) {
   if (mode === 'dock') {
     scrollSpeed -= scrollSpeed * FWD_DRAG * dt;
     if (thrustFwd) scrollSpeed += FWD_THRUST_BOOST * dt;
-    scrollSpeed = Math.max(MIN_SCROLL_SPEED, Math.min(MAX_SCROLL_SPEED, scrollSpeed));
+    if (braking) scrollSpeed -= BRAKE_DECEL * dt;
+    scrollSpeed = Math.max(0, Math.min(MAX_SCROLL_SPEED, scrollSpeed));
     scrollX += scrollSpeed * dt;
   } else {
-    // Undock: scroll goes backward (decreasing). W key accelerates left.
+    // Undock: scroll goes backward (decreasing). D key accelerates toward exit.
     if (thrustFwd) scrollSpeed += FWD_THRUST_BOOST * 1.2 * dt;
+    if (braking) scrollSpeed -= BRAKE_DECEL * dt;
     scrollSpeed -= scrollSpeed * FWD_DRAG * dt;
     scrollSpeed = Math.max(0, Math.min(MAX_SCROLL_SPEED, scrollSpeed));
     scrollX -= scrollSpeed * dt;
   }
 
-  // Vertical thrust
+  // Vertical thrust (no gravity)
   shipVY += moveDir * THRUST_ACCEL * dt;
   shipVY -= shipVY * VERT_DRAG * dt;
-
-  // Gravity when slow
-  const gravFactor = Math.max(0, 1 - scrollSpeed / GRAVITY_SPEED_THRESH);
-  shipVY += GRAVITY * gravFactor * dt;
 
   shipY += shipVY * dt;
 
@@ -513,23 +518,17 @@ export function drawDocking(ctx) {
 
   // Speed indicator
   ctx.font = '11px monospace';
-  ctx.fillStyle = scrollSpeed < GRAVITY_SPEED_THRESH ? '#f84' : '#4af';
+  ctx.fillStyle = '#4af';
   ctx.textAlign = 'center';
   ctx.fillText(`SPD ${Math.round(scrollSpeed)}`, cx + viewW / 2 - 40, cy - halfH - 44);
-
-  if (scrollSpeed < GRAVITY_SPEED_THRESH) {
-    ctx.fillStyle = '#f44';
-    ctx.font = '10px monospace';
-    ctx.fillText('⚠ LOW SPEED — GRAVITY', cx, cy + halfH + 36);
-  }
 
   // Controls hint
   ctx.font = '11px monospace';
   ctx.fillStyle = '#888';
   ctx.textAlign = 'center';
   ctx.fillText(mode === 'dock'
-    ? '[W/↑] up + boost  [S/↓] down — land gently on your assigned pad'
-    : '[W/↑] up + thrust left  [S/↓] down — fly out through the entrance',
+    ? '[W/S] up/down  [D] thrust  [A] brake — land gently on your assigned pad'
+    : '[W/S] up/down  [D] thrust  [A] brake — fly out through the entrance',
     cx, cy + halfH + 18);
 
   // Result overlay

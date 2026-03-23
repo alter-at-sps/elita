@@ -12,7 +12,7 @@ for (let i = 0; i < 400; i++) {
   });
 }
 
-export function renderScene(ctx, ship, pois, zoom = 1) {
+export function renderScene(ctx, ship, pois, zoom = 1, scenery = []) {
   const W = ctx.canvas.width;
   const H = ctx.canvas.height;
 
@@ -29,6 +29,9 @@ export function renderScene(ctx, ship, pois, zoom = 1) {
 
   // Background stars (parallax)
   drawStars(ctx, ship);
+
+  // Scenery (stars, planets — non-interactive, drawn behind POIs)
+  scenery.forEach(obj => drawPOI(ctx, obj, ship, zoom));
 
   // POIs
   pois.forEach(poi => drawPOI(ctx, poi, ship, zoom));
@@ -73,6 +76,7 @@ function drawPOI(ctx, poi, ship, zoom) {
     case 'planet': drawPlanet(ctx, poi, s); break;
     case 'station': drawStation(ctx, poi, s); break;
     case 'asteroid_field': drawAsteroidField(ctx, poi, s); break;
+    case 'black_hole': drawBlackHole(ctx, poi, s); break;
     default:
       ctx.beginPath();
       ctx.arc(0, 0, 6 * s, 0, 2 * Math.PI);
@@ -284,6 +288,80 @@ function drawAsteroidField(ctx, poi, s) {
   });
 }
 
+// ── Black hole: event horizon + accretion disk + jets ──
+function drawBlackHole(ctx, poi, s) {
+  const r = poi.size * s;
+  const ar = (poi.extra.accretionRadius || 120) * s;
+  const t = performance.now() / 1000;
+
+  // Gravitational lensing glow
+  const lensGrad = ctx.createRadialGradient(0, 0, r * 1.2, 0, 0, ar * 1.5);
+  lensGrad.addColorStop(0, 'rgba(160,60,255,0.3)');
+  lensGrad.addColorStop(0.4, 'rgba(100,40,200,0.1)');
+  lensGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = lensGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, ar * 1.5, 0, 2 * Math.PI);
+  ctx.fill();
+
+  // Accretion disk (ellipse, rotating)
+  ctx.save();
+  ctx.rotate(t * 0.15);
+  for (let ring = 3; ring >= 0; ring--) {
+    const ringR = ar * (0.5 + ring * 0.15);
+    const alpha = 0.6 - ring * 0.12;
+    const hue = 30 + ring * 20; // orange → yellow
+    ctx.beginPath();
+    ctx.ellipse(0, 0, ringR, ringR * 0.25, 0, 0, 2 * Math.PI);
+    ctx.strokeStyle = `hsla(${hue},100%,60%,${alpha})`;
+    ctx.lineWidth = (4 - ring) * 2 * s;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Relativistic jets
+  if (poi.extra.jets) {
+    const jetLen = ar * 2;
+    const flicker = 0.6 + 0.4 * Math.sin(t * 5);
+    ctx.globalAlpha = 0.4 * flicker;
+    // Top jet
+    const jetGrad1 = ctx.createLinearGradient(0, -r, 0, -jetLen);
+    jetGrad1.addColorStop(0, 'rgba(140,80,255,0.8)');
+    jetGrad1.addColorStop(1, 'transparent');
+    ctx.fillStyle = jetGrad1;
+    ctx.beginPath();
+    ctx.moveTo(-3 * s, -r);
+    ctx.lineTo(0, -jetLen);
+    ctx.lineTo(3 * s, -r);
+    ctx.closePath();
+    ctx.fill();
+    // Bottom jet
+    const jetGrad2 = ctx.createLinearGradient(0, r, 0, jetLen);
+    jetGrad2.addColorStop(0, 'rgba(140,80,255,0.8)');
+    jetGrad2.addColorStop(1, 'transparent');
+    ctx.fillStyle = jetGrad2;
+    ctx.beginPath();
+    ctx.moveTo(-3 * s, r);
+    ctx.lineTo(0, jetLen);
+    ctx.lineTo(3 * s, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Event horizon (pure black circle with bright photon ring)
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.15, 0, 2 * Math.PI);
+  ctx.strokeStyle = `rgba(255,200,100,${0.5 + 0.2 * Math.sin(t * 2)})`;
+  ctx.lineWidth = 2 * s;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, 2 * Math.PI);
+  ctx.fillStyle = '#000';
+  ctx.fill();
+}
+
 // Helper: lighten a hex color
 function lighten(hex, amount) {
   hex = hex.replace('#', '');
@@ -298,7 +376,8 @@ const POI_COLORS = {
   'star': '#b8860b',
   'planet': '#0077aa',
   'station': '#333',
-  'asteroid_field': '#666'
+  'asteroid_field': '#666',
+  'black_hole': '#a040ff',
 };
 
 function drawPOIMarkers(ctx, ship, pois, zoom) {

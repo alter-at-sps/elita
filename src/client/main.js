@@ -7,17 +7,17 @@ import { generateWorld } from './world.js';
 import { initializeEconomy } from './economy.js';
 import { updateShipPhysics } from './physics.js';
 import { renderScene } from './renderer.js';
-import { drawHUD, cycleMinimapZoom } from './hud.js';
+import { drawHUD, cycleMinimapZoom, toggleMinimapFullscreen } from './hud.js';
 import { drawPanels, togglePanel, closePanel, getActivePanel, handleTradeKey,
          cycleLedgerSort, toggleLedgerDirection, cycleLedgerFilter } from './panels.js';
-import { isDockingActive, startDocking, startUndocking, setDockingMove, updateDocking, drawDocking, getPadCount } from './docking.js';
+import { isDockingActive, startDocking, startUndocking, setDockingMove, setDockingHorizontal, updateDocking, drawDocking, getPadCount, getDockingMode } from './docking.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const world = generateWorld(20, 100);
+const world = generateWorld();
 initializeEconomy(world.pois);
 const ship = new Ship();
 ship.x = 0;
@@ -46,6 +46,8 @@ window.addEventListener('keydown', e => {
   if (isDockingActive()) {
     if (e.code === 'ArrowUp' || e.code === 'KeyW') setDockingMove(-1);
     if (e.code === 'ArrowDown' || e.code === 'KeyS') setDockingMove(1);
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') setDockingHorizontal(1);
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') setDockingHorizontal(-1);
     return;
   }
 
@@ -82,6 +84,9 @@ window.addEventListener('keydown', e => {
   }
   if (e.code === 'KeyM') {
     cycleMinimapZoom();
+  }
+  if (e.code === 'KeyN') {
+    toggleMinimapFullscreen();
   }
   // Docking request: R key
   if (e.code === 'KeyR') {
@@ -129,6 +134,7 @@ window.addEventListener('keyup', e => {
   // Docking minigame key release
   if (isDockingActive()) {
     if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'ArrowDown' || e.code === 'KeyS') setDockingMove(0);
+    if (e.code === 'ArrowRight' || e.code === 'KeyD' || e.code === 'ArrowLeft' || e.code === 'KeyA') setDockingHorizontal(0);
     return;
   }
   if (e.code === 'ArrowUp' || e.code === 'KeyW') input.thrust = false;
@@ -200,8 +206,8 @@ function gameLoop(now) {
   if (isDockingActive()) {
     const dockResult = updateDocking(dt);
     if (dockResult === 'success') {
-      // Check if this was docking or undocking based on ship state
-      if (!ship.docked) {
+      // Check if this was docking (not undocking)
+      if (!ship.docked && getDockingMode() === 'dock') {
         // Was docking — dock the ship
         const stations = world.pois.filter(p => p.type === 'station');
         for (const st of stations) {
@@ -215,7 +221,7 @@ function gameLoop(now) {
       // If undocking success — ship is already undocked, nothing more needed
     }
     // On fail — nothing, player stays near station and can try again
-    renderScene(ctx, ship, world.pois, getZoom());
+    renderScene(ctx, ship, world.pois, getZoom(), world.scenery);
     drawDocking(ctx);
     requestAnimationFrame(gameLoop);
     return;
@@ -288,8 +294,8 @@ function gameLoop(now) {
     }
   }
 
-  renderScene(ctx, ship, world.pois, getZoom());
-  drawHUD(ctx, ship, world.pois, getZoom());
+  renderScene(ctx, ship, world.pois, getZoom(), world.scenery);
+  drawHUD(ctx, ship, world.pois, getZoom(), world.galaxyCenter);
   drawPanels(ctx, ship, world.pois);
 
   requestAnimationFrame(gameLoop);

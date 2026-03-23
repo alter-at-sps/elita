@@ -3,7 +3,7 @@
 
 const AU = 1e6; // 1 AU = 1 000 000 game units
 
-export function drawHUD(ctx, ship, pois, zoom = 1) {
+export function drawHUD(ctx, ship, pois, zoom = 1, galaxyCenter = null) {
   const W = ctx.canvas.width;
   const H = ctx.canvas.height;
 
@@ -146,7 +146,7 @@ export function drawHUD(ctx, ship, pois, zoom = 1) {
   ctx.restore();
 
   // ── Enhanced Minimap ──
-  drawMinimap(ctx, ship, pois);
+  drawMinimap(ctx, ship, pois, galaxyCenter);
 
   ctx.restore();
 }
@@ -156,36 +156,57 @@ const TYPE_SYMBOLS = {
   planet: '●',
   station: '◆',
   asteroid_field: '▪',
+  black_hole: '◉',
 };
 
-let minimapZoomLevel = 0; // 0=auto, 1=near, 2=mid, 3=far
-const MINIMAP_ZOOM_RANGES = [0, 20000, 200000, 5e7]; // world units radius
+let minimapZoomLevel = 0; // 0=auto, 1=near, 2=mid, 3=far, 4=galaxy
+const MINIMAP_ZOOM_RANGES = [0, 20000, 200000, 5e7, 2e8]; // world units radius
+let minimapFullscreen = false;
 
 export function cycleMinimapZoom() {
   minimapZoomLevel = (minimapZoomLevel + 1) % MINIMAP_ZOOM_RANGES.length;
 }
 
-function drawMinimap(ctx, ship, pois) {
-  const R = 110; // minimap radius
-  const mx = ctx.canvas.width - R - 15;
-  const my = ctx.canvas.height - R - 15;
+export function toggleMinimapFullscreen() {
+  minimapFullscreen = !minimapFullscreen;
+}
 
+function drawMinimap(ctx, ship, pois, galaxyCenter) {
+  const W = ctx.canvas.width;
+  const H = ctx.canvas.height;
+  const fullscreen = minimapFullscreen;
+  const R = fullscreen ? Math.min(W, H) / 2 - 30 : 110;
+  const mx = fullscreen ? W / 2 : W - R - 15;
+  const my = fullscreen ? H / 2 : H - R - 15;
+  // In fullscreen, center on galaxy center; otherwise center on ship
+  const centerX = fullscreen && galaxyCenter ? galaxyCenter.x : ship.x;
+  const centerY = fullscreen && galaxyCenter ? galaxyCenter.y : ship.y;
   ctx.save();
-  ctx.globalAlpha = 0.85;
+
+  // Fullscreen: darken background
+  if (fullscreen) {
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  ctx.globalAlpha = fullscreen ? 1 : 0.85;
   ctx.translate(mx, my);
 
   // Background
   ctx.beginPath();
   ctx.arc(0, 0, R, 0, 2 * Math.PI);
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillStyle = fullscreen ? 'rgba(10,10,20,0.98)' : 'rgba(255,255,255,0.92)';
   ctx.fill();
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = fullscreen ? '#556' : '#333';
+  ctx.lineWidth = fullscreen ? 2 : 1.5;
   ctx.stroke();
 
   // Determine range (auto or fixed)
   let range;
-  if (minimapZoomLevel === 0) {
+  if (fullscreen) {
+    range = 9e7; // fit galaxy radius (80e6) with some padding
+  } else if (minimapZoomLevel === 0) {
     // Auto: fit nearest 5 POIs or target, whichever is farther
     const dists = pois.map(p => Math.hypot(p.x - ship.x, p.y - ship.y));
     dists.sort((a, b) => a - b);
@@ -198,7 +219,7 @@ function drawMinimap(ctx, ship, pois) {
 
   // Range rings
   ctx.setLineDash([2, 3]);
-  ctx.strokeStyle = '#ccc';
+  ctx.strokeStyle = fullscreen ? '#334' : '#ccc';
   ctx.lineWidth = 0.5;
   for (let i = 1; i <= 3; i++) {
     const rr = (R - 10) * (i / 3);
@@ -210,10 +231,10 @@ function drawMinimap(ctx, ship, pois) {
 
   // Range label
   const rangeAU = (range / 1e6).toFixed(range > 1e6 ? 1 : 4);
-  ctx.font = '9px monospace';
-  ctx.fillStyle = '#999';
+  ctx.font = fullscreen ? '13px monospace' : '9px monospace';
+  ctx.fillStyle = fullscreen ? '#888' : '#999';
   ctx.textAlign = 'right';
-  ctx.fillText(`${rangeAU} AU`, R - 4, -R + 12);
+  ctx.fillText(`${rangeAU} AU`, R - 4, -R + (fullscreen ? 18 : 12));
   ctx.textAlign = 'left';
 
   // Clip to circle
@@ -224,8 +245,8 @@ function drawMinimap(ctx, ship, pois) {
 
   // Draw POIs
   pois.forEach(poi => {
-    const dx = (poi.x - ship.x) * scale;
-    const dy = (poi.y - ship.y) * scale;
+    const dx = (poi.x - centerX) * scale;
+    const dy = (poi.y - centerY) * scale;
     const dist = Math.hypot(dx, dy);
 
     // Clamp to edge if outside radius
@@ -236,7 +257,7 @@ function drawMinimap(ctx, ship, pois) {
     }
 
     const isTarget = poi === ship.target;
-    const dotR = isTarget ? 5 : 3;
+    const dotR = isTarget ? (fullscreen ? 7 : 5) : (fullscreen ? 4 : 3);
 
     ctx.beginPath();
     ctx.arc(px, py, dotR, 0, 2 * Math.PI);
@@ -251,33 +272,63 @@ function drawMinimap(ctx, ship, pois) {
       ctx.lineWidth = 1;
       ctx.stroke();
     }
+
+    // Labels in fullscreen
+    if (fullscreen && dist < R - 6) {
+      ctx.font = '10px monospace';
+      ctx.fillStyle = isTarget ? '#f88' : '#aaa';
+      ctx.textAlign = 'left';
+      ctx.fillText(poi.name, px + dotR + 4, py + 3);
+    }
   });
 
   ctx.restore(); // unclip
 
-  // Ship in center + direction indicator
-  ctx.beginPath();
-  ctx.arc(0, 0, 3, 0, 2 * Math.PI);
-  ctx.fillStyle = '#000';
-  ctx.fill();
-
-  // Ship heading line
-  const hx = Math.cos(ship.angle) * 14;
-  const hy = Math.sin(ship.angle) * 14;
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(hx, hy);
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
+  // Ship indicator
+  if (fullscreen) {
+    // In fullscreen, ship is NOT at center — draw it at its actual position
+    const sx = (ship.x - centerX) * scale;
+    const sy = (ship.y - centerY) * scale;
+    const sDist = Math.hypot(sx, sy);
+    if (sDist < R - 4) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = '#4f4';
+      ctx.fill();
+      const hLen = 20;
+      const hx = Math.cos(ship.angle) * hLen;
+      const hy = Math.sin(ship.angle) * hLen;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + hx, sy + hy);
+      ctx.strokeStyle = '#4f4';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  } else {
+    // Small minimap: ship in center
+    ctx.beginPath();
+    ctx.arc(0, 0, 3, 0, 2 * Math.PI);
+    ctx.fillStyle = '#000';
+    ctx.fill();
+    const hLen = 14;
+    const hx = Math.cos(ship.angle) * hLen;
+    const hy = Math.sin(ship.angle) * hLen;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(hx, hy);
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
 
   // Zoom level label
-  const zoomLabels = ['AUTO', 'NEAR', 'MID', 'FAR'];
-  ctx.font = '9px monospace';
-  ctx.fillStyle = '#666';
+  const zoomLabels = ['AUTO', 'NEAR', 'MID', 'FAR', 'GALAXY'];
+  ctx.font = fullscreen ? '13px monospace' : '9px monospace';
+  ctx.fillStyle = fullscreen ? '#888' : '#666';
   ctx.textAlign = 'center';
-  ctx.fillText(zoomLabels[minimapZoomLevel], 0, R - 3);
-  ctx.fillText('[M] zoom', 0, R + 10);
+  ctx.fillText(zoomLabels[minimapZoomLevel], 0, R - (fullscreen ? 6 : 3));
+  ctx.fillText(fullscreen ? '[M] zoom  [N] close' : '[M] zoom  [N] fullscreen', 0, R + (fullscreen ? 16 : 10));
   ctx.textAlign = 'left';
 
   ctx.restore();
